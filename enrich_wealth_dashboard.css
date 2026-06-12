@@ -1,3 +1,6 @@
+/* =====================================================================
+   VJ ANALYSING THE MARKET — LAYOUT & ALIGNMENT SYSTEM
+   ===================================================================== */
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
     width: 6px;
@@ -14,12 +17,30 @@
     background: #334155;
 }
 
-/* Glassmorphism Panels */
+/* =====================================================================
+   GLOBAL LAYOUT RESET
+   ===================================================================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+}
+img, svg, video, canvas {
+    max-width: 100%;
+    height: auto;
+}
+/* =====================================================================
+   GLASSMORPHISM PANELS
+   ===================================================================== */
 .glass-panel {
     background: rgba(15, 23, 42, 0.45);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 1rem;
 }
 
 .glass-panel-hover {
@@ -31,7 +52,9 @@
     box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.06);
 }
 
-/* Option Chain ITM highlighting */
+/* =====================================================================
+   OPTION CHAIN ITM HIGHLIGHTING
+   ===================================================================== */
 .itm-highlight-call {
     background: rgba(16, 185, 129, 0.04) !important;
 }
@@ -39,12 +62,386 @@
     background: rgba(239, 68, 68, 0.04) !important;
 }
 
-/* Speedometer animation classes */
+/* Speedometer */
 .transition-needle {
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ================= LIGHT MODE OVERRIDES ================= */
+/* =====================================================================
+   NAVIGATION — RESPONSIVE TAB BAR
+   ===================================================================== */
+.nav-tab-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 4px 4px 0 4px;
+}
+.nav-tab-bar::-webkit-scrollbar {
+    display: none;
+}
+.nav-tab-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =====================================================================
+   MAIN CONTENT GRID
+   ===================================================================== */
+.app-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+@media (min-width: 1024px) {
+    .app-grid {
+        grid-template-columns: minmax(280px, 360px) 1fr;
+    }
+}
+@media (min-width: 1280px) {
+    .app-grid {
+        grid-template-columns: 320px 1fr;
+    }
+}
+
+/* Sidebar column */
+.sidebar-col {
+    min-width: 0;
+    width: 100%;
+}
+.main-col {
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* =====================================================================
+   CARD SYSTEM — Consistent spacing
+   ===================================================================== */
+.metric-card {
+    border-radius: 1rem;
+    padding: 1.25rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+@media (min-width: 768px) {
+    .metric-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+@media (max-width: 420px) {
+    .metric-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =====================================================================
+   FORM ELEMENTS — Consistent alignment
+   ===================================================================== */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+.input-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+body.light-mode .input-group label {
+    color: #475569;
+}
+.input-wrapper {
+    position: relative;
+    width: 100%;
+}
+.input-wrapper .prefix {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.875rem;
+    pointer-events: none;
+    line-height: 1;
+}
+.input-wrapper input,
+.input-wrapper select {
+    width: 100%;
+    background: rgba(2, 6, 23, 0.8);
+    border: 1px solid #1e293b;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.75rem 0.75rem 2rem;
+    font-size: 0.875rem;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.input-wrapper input:focus,
+.input-wrapper select:focus {
+    border-color: #10b981;
+}
+.input-wrapper input[type="number"]::-webkit-inner-spin-button {
+    opacity: 0.5;
+}
+.input-wrapper.no-prefix input {
+    padding-left: 0.75rem;
+}
+
+/* =====================================================================
+   TABLES — Responsive with sticky headers
+   ===================================================================== */
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 1rem;
+}
+.table-wrap table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+.table-wrap thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.table-wrap th {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.6875rem;
+    color: #94a3b8;
+    background: #020617;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    white-space: nowrap;
+}
+.table-wrap td {
+    padding: 0.5rem 0.75rem;
+    white-space: nowrap;
+}
+.table-wrap tbody tr {
+    transition: background-color 0.15s;
+}
+.table-wrap tbody tr:hover {
+    background: rgba(16, 185, 129, 0.04);
+}
+
+/* =====================================================================
+   TICKER STRIP
+   ===================================================================== */
+.ticker-bar {
+    height: 28px;
+    overflow: hidden;
+    position: relative;
+}
+.ticker-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    white-space: nowrap;
+    animation: tickerScroll 60s linear infinite;
+    will-change: transform;
+}
+@keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.ticker-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 20px;
+    border-right: 1px solid rgba(51, 65, 85, 0.5);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    white-space: nowrap;
+    line-height: 1;
+}
+.ticker-up { color: #10b981; }
+.ticker-down { color: #f43f5e; }
+.ticker-neutral { color: #94a3b8; }
+
+/* =====================================================================
+   SIDEBAR INPUTS CONTAINER
+   ===================================================================== */
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* =====================================================================
+   STICKY FOOTER
+   ===================================================================== */
+.app-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: rgba(2, 6, 23, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(51, 65, 85, 0.6);
+    padding: 0.625rem 1.5rem;
+}
+.app-footer .footer-inner {
+    max-width: 80rem;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.625rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* =====================================================================
+   SCENARIO MANAGER
+   ===================================================================== */
+.scenario-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.5rem;
+    background: rgba(2, 6, 23, 0.4);
+    border: 1px solid rgba(51, 65, 85, 0.3);
+    transition: background 0.15s;
+}
+.scenario-item:hover {
+    background: rgba(2, 6, 23, 0.6);
+}
+
+/* =====================================================================
+   RESPONSIVE BREAKPOINT OVERRIDES (mobile-first)
+   ===================================================================== */
+@media (max-width: 767px) {
+    .glass-panel {
+        padding: 1rem !important;
+        border-radius: 0.75rem !important;
+    }
+    .ticker-bar {
+        height: 24px;
+    }
+    .ticker-item {
+        font-size: 8px;
+        padding: 0 12px;
+    }
+}
+@media (max-width: 400px) {
+    body {
+        font-size: 13px;
+    }
+    .metric-card {
+        padding: 0.875rem !important;
+    }
+}
+
+/* =====================================================================
+   SIP CALCULATOR ANIMATIONS
+   ===================================================================== */
+@keyframes sipFadeSlideUp {
+    0% { opacity: 0; transform: translateY(16px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+.sip-animate-in {
+    animation: sipFadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.sip-animate-in-d1 { animation-delay: 0.05s; }
+.sip-animate-in-d2 { animation-delay: 0.10s; }
+.sip-animate-in-d3 { animation-delay: 0.15s; }
+.sip-animate-in-d4 { animation-delay: 0.20s; }
+.sip-animate-in-d5 { animation-delay: 0.25s; }
+.sip-animate-in-d6 { animation-delay: 0.30s; }
+.sip-animate-in-d7 { animation-delay: 0.35s; }
+
+@keyframes sipValueFlash {
+    0% { text-shadow: 0 0 0 transparent; }
+    30% { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2); }
+    70% { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2); }
+    100% { text-shadow: 0 0 0 transparent; }
+}
+.sip-value-flash {
+    animation: sipValueFlash 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes sipReturnFlash {
+    0% { text-shadow: 0 0 0 transparent; }
+    30% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.1); }
+    70% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.1); }
+    100% { text-shadow: 0 0 0 transparent; }
+}
+.sip-return-flash {
+    animation: sipReturnFlash 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes sipBarGlow {
+    0% { filter: brightness(1); }
+    30% { filter: brightness(1.4); }
+    100% { filter: brightness(1); }
+}
+.sip-bar-glow {
+    animation: sipBarGlow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes sipBannerSlide {
+    0% { opacity: 0; transform: translateY(-12px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sip-banner-enter {
+    animation: sipBannerSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes sipModeRipple {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    100% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+}
+.sip-mode-active {
+    animation: sipModeRipple 0.5s ease-out;
+}
+
+.sip-card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sip-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -8px rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* =====================================================================
+   LIGHT MODE OVERRIDES
+   ===================================================================== */
 body.light-mode {
     background-color: #f8fafc;
     background-image: radial-gradient(ellipse_at_top, #f1f5f9, #e2e8f0, #cbd5e1);
@@ -69,84 +466,36 @@ body.light-mode .glass-panel-hover:hover {
     box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.1);
 }
 
-body.light-mode .text-white {
-    color: #0f172a !important;
-}
+body.light-mode .text-white { color: #0f172a !important; }
+body.light-mode .text-slate-100 { color: #1e293b !important; }
+body.light-mode .text-slate-300 { color: #334155 !important; }
+body.light-mode .text-slate-400 { color: #475569 !important; }
+body.light-mode .text-slate-500 { color: #64748b !important; }
 
-body.light-mode .text-slate-100 {
-    color: #1e293b !important;
-}
+body.light-mode .bg-slate-950 { background-color: #f1f5f9 !important; }
+body.light-mode .bg-slate-950\/80 { background-color: rgba(241, 245, 249, 0.8) !important; }
+body.light-mode .bg-slate-950\/60 { background-color: rgba(241, 245, 249, 0.6) !important; }
+body.light-mode .bg-slate-950\/40 { background-color: rgba(241, 245, 249, 0.4) !important; }
+body.light-mode .bg-slate-900 { background-color: #e2e8f0 !important; }
+body.light-mode .bg-slate-900\/40 { background-color: rgba(226, 232, 240, 0.4) !important; }
+body.light-mode .bg-slate-800 { background-color: #cbd5e1 !important; }
 
-body.light-mode .text-slate-300 {
-    color: #334155 !important;
-}
+body.light-mode .border-slate-800 { border-color: #cbd5e1 !important; }
+body.light-mode .border-slate-900 { border-color: #e2e8f0 !important; }
+body.light-mode .border-slate-800\/80 { border-color: rgba(203, 213, 225, 0.8) !important; }
+body.light-mode .border-slate-800\/60 { border-color: rgba(203, 213, 225, 0.6) !important; }
+body.light-mode .border-slate-800\/40 { border-color: rgba(203, 213, 225, 0.4) !important; }
 
-body.light-mode .text-slate-400 {
-    color: #475569 !important;
-}
-
-body.light-mode .text-slate-500 {
-    color: #64748b !important;
-}
-
-body.light-mode .bg-slate-950 {
-    background-color: #f1f5f9 !important;
-}
-
-body.light-mode .bg-slate-950\/80 {
-    background-color: rgba(241, 245, 249, 0.8) !important;
-}
-
-body.light-mode .bg-slate-950\/60 {
-    background-color: rgba(241, 245, 249, 0.6) !important;
-}
-
-body.light-mode .bg-slate-950\/40 {
-    background-color: rgba(241, 245, 249, 0.4) !important;
-}
-
-body.light-mode .bg-slate-900 {
-    background-color: #e2e8f0 !important;
-}
-
-body.light-mode .bg-slate-900\/40 {
-    background-color: rgba(226, 232, 240, 0.4) !important;
-}
-
-body.light-mode .bg-slate-800 {
-    background-color: #cbd5e1 !important;
-}
-
-body.light-mode .border-slate-800 {
-    border-color: #cbd5e1 !important;
-}
-
-body.light-mode .border-slate-900 {
-    border-color: #e2e8f0 !important;
-}
-
-body.light-mode .border-slate-800\/80 {
-    border-color: rgba(203, 213, 225, 0.8) !important;
-}
-
-body.light-mode .border-slate-800\/60 {
-    border-color: rgba(203, 213, 225, 0.6) !important;
-}
-
-body.light-mode .border-slate-800\/40 {
-    border-color: rgba(203, 213, 225, 0.4) !important;
-}
-
-body.light-mode select, 
-body.light-mode input[type="number"], 
+body.light-mode select,
+body.light-mode input[type="number"],
 body.light-mode input[type="text"] {
     background-color: #ffffff !important;
     border-color: #cbd5e1 !important;
     color: #0f172a !important;
 }
 
-body.light-mode select:focus, 
-body.light-mode input[type="number"]:focus, 
+body.light-mode select:focus,
+body.light-mode input[type="number"]:focus,
 body.light-mode input[type="text"]:focus {
     border-color: #10b981 !important;
 }
@@ -173,8 +522,8 @@ body.light-mode .itm-highlight-put {
     background: rgba(239, 68, 68, 0.08) !important;
 }
 
-body.light-mode footer {
-    background-color: rgba(241, 245, 249, 0.95) !important;
+body.light-mode .app-footer {
+    background: rgba(241, 245, 249, 0.95) !important;
     border-top-color: #cbd5e1 !important;
 }
 
@@ -182,96 +531,25 @@ body.light-mode #vjNeedle {
     background-color: #0f172a !important;
 }
 
-/* ================= SIP CALCULATOR ANIMATIONS ================= */
-
-/* Slide-up + fade-in for panels appearing */
-@keyframes sipFadeSlideUp {
-    0% { opacity: 0; transform: translateY(16px); }
-    100% { opacity: 1; transform: translateY(0); }
-}
-
-.sip-animate-in {
-    animation: sipFadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.sip-animate-in-d1 { animation-delay: 0.05s; }
-.sip-animate-in-d2 { animation-delay: 0.10s; }
-.sip-animate-in-d3 { animation-delay: 0.15s; }
-.sip-animate-in-d4 { animation-delay: 0.20s; }
-.sip-animate-in-d5 { animation-delay: 0.25s; }
-.sip-animate-in-d6 { animation-delay: 0.30s; }
-.sip-animate-in-d7 { animation-delay: 0.35s; }
-
-/* Value flash on update */
-@keyframes sipValueFlash {
-    0% { text-shadow: 0 0 0 transparent; }
-    30% { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2); }
-    70% { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2); }
-    100% { text-shadow: 0 0 0 transparent; }
-}
-
-.sip-value-flash {
-    animation: sipValueFlash 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Return value specific flash (white text, green glow) */
-@keyframes sipReturnFlash {
-    0% { text-shadow: 0 0 0 transparent; }
-    30% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.1); }
-    70% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.1); }
-    100% { text-shadow: 0 0 0 transparent; }
-}
-
-.sip-return-flash {
-    animation: sipReturnFlash 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Bar fill glow on change */
-@keyframes sipBarGlow {
-    0% { filter: brightness(1); }
-    30% { filter: brightness(1.4); }
-    100% { filter: brightness(1); }
-}
-
-.sip-bar-glow {
-    animation: sipBarGlow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Goal banner slide-in */
-@keyframes sipBannerSlide {
-    0% { opacity: 0; transform: translateY(-12px) scale(0.97); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.sip-banner-enter {
-    animation: sipBannerSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Mode switch ripple effect */
-@keyframes sipModeRipple {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    100% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
-}
-
-.sip-mode-active {
-    animation: sipModeRipple 0.5s ease-out;
-}
-
-/* Card hover lift (consistent with glass-panel-hover but for metric cards) */
-.sip-card-hover {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.sip-card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px -8px rgba(16, 185, 129, 0.15);
-    border-color: rgba(16, 185, 129, 0.3);
-}
-
-/* Light mode adjustments for sip animations */
 body.light-mode .sip-value-flash {
     animation-name: sipReturnFlash;
 }
 
 body.light-mode .sip-card-hover:hover {
     box-shadow: 0 8px 30px -8px rgba(16, 185, 129, 0.25);
+}
+
+body.light-mode .input-wrapper input,
+body.light-mode .input-wrapper select {
+    background: #fff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+body.light-mode .input-wrapper input:focus,
+body.light-mode .input-wrapper select:focus {
+    border-color: #10b981 !important;
+}
+body.light-mode .scenario-item {
+    background: rgba(255, 255, 255, 0.5);
+    border-color: #cbd5e1;
 }

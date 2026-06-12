@@ -1510,7 +1510,7 @@ function renderScenariosUI() {
 
     state.savedScenarios.forEach(scen => {
         const div = document.createElement('div');
-        div.className = "flex justify-between items-center bg-slate-950/40 hover:bg-slate-900 border border-slate-900 px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer hover:border-brand-500/20 transition";
+        div.className = "scenario-item text-[10px] cursor-pointer";
         div.onclick = () => loadScenario(scen.id);
         
         div.innerHTML = `
