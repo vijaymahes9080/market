@@ -1,0 +1,277 @@
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #020617;
+}
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
+
+/* Glassmorphism Panels */
+.glass-panel {
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-panel-hover {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-panel-hover:hover {
+    background: rgba(15, 23, 42, 0.65);
+    border-color: rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.06);
+}
+
+/* Option Chain ITM highlighting */
+.itm-highlight-call {
+    background: rgba(16, 185, 129, 0.04) !important;
+}
+.itm-highlight-put {
+    background: rgba(239, 68, 68, 0.04) !important;
+}
+
+/* Speedometer animation classes */
+.transition-needle {
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ================= LIGHT MODE OVERRIDES ================= */
+body.light-mode {
+    background-color: #f8fafc;
+    background-image: radial-gradient(ellipse_at_top, #f1f5f9, #e2e8f0, #cbd5e1);
+    color: #0f172a;
+}
+
+body.light-mode nav.glass-panel {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(203, 213, 225, 0.8);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+}
+
+body.light-mode .glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(203, 213, 225, 0.6);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+body.light-mode .glass-panel-hover:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.1);
+}
+
+body.light-mode .text-white {
+    color: #0f172a !important;
+}
+
+body.light-mode .text-slate-100 {
+    color: #1e293b !important;
+}
+
+body.light-mode .text-slate-300 {
+    color: #334155 !important;
+}
+
+body.light-mode .text-slate-400 {
+    color: #475569 !important;
+}
+
+body.light-mode .text-slate-500 {
+    color: #64748b !important;
+}
+
+body.light-mode .bg-slate-950 {
+    background-color: #f1f5f9 !important;
+}
+
+body.light-mode .bg-slate-950\/80 {
+    background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+body.light-mode .bg-slate-950\/60 {
+    background-color: rgba(241, 245, 249, 0.6) !important;
+}
+
+body.light-mode .bg-slate-950\/40 {
+    background-color: rgba(241, 245, 249, 0.4) !important;
+}
+
+body.light-mode .bg-slate-900 {
+    background-color: #e2e8f0 !important;
+}
+
+body.light-mode .bg-slate-900\/40 {
+    background-color: rgba(226, 232, 240, 0.4) !important;
+}
+
+body.light-mode .bg-slate-800 {
+    background-color: #cbd5e1 !important;
+}
+
+body.light-mode .border-slate-800 {
+    border-color: #cbd5e1 !important;
+}
+
+body.light-mode .border-slate-900 {
+    border-color: #e2e8f0 !important;
+}
+
+body.light-mode .border-slate-800\/80 {
+    border-color: rgba(203, 213, 225, 0.8) !important;
+}
+
+body.light-mode .border-slate-800\/60 {
+    border-color: rgba(203, 213, 225, 0.6) !important;
+}
+
+body.light-mode .border-slate-800\/40 {
+    border-color: rgba(203, 213, 225, 0.4) !important;
+}
+
+body.light-mode select, 
+body.light-mode input[type="number"], 
+body.light-mode input[type="text"] {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body.light-mode select:focus, 
+body.light-mode input[type="number"]:focus, 
+body.light-mode input[type="text"]:focus {
+    border-color: #10b981 !important;
+}
+
+body.light-mode table thead {
+    background-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+
+body.light-mode table th {
+    background-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+
+body.light-mode table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+body.light-mode .itm-highlight-call {
+    background: rgba(16, 185, 129, 0.08) !important;
+}
+
+body.light-mode .itm-highlight-put {
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+
+body.light-mode footer {
+    background-color: rgba(241, 245, 249, 0.95) !important;
+    border-top-color: #cbd5e1 !important;
+}
+
+body.light-mode #vjNeedle {
+    background-color: #0f172a !important;
+}
+
+/* ================= SIP CALCULATOR ANIMATIONS ================= */
+
+/* Slide-up + fade-in for panels appearing */
+@keyframes sipFadeSlideUp {
+    0% { opacity: 0; transform: translateY(16px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.sip-animate-in {
+    animation: sipFadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.sip-animate-in-d1 { animation-delay: 0.05s; }
+.sip-animate-in-d2 { animation-delay: 0.10s; }
+.sip-animate-in-d3 { animation-delay: 0.15s; }
+.sip-animate-in-d4 { animation-delay: 0.20s; }
+.sip-animate-in-d5 { animation-delay: 0.25s; }
+.sip-animate-in-d6 { animation-delay: 0.30s; }
+.sip-animate-in-d7 { animation-delay: 0.35s; }
+
+/* Value flash on update */
+@keyframes sipValueFlash {
+    0% { text-shadow: 0 0 0 transparent; }
+    30% { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2); }
+    70% { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2); }
+    100% { text-shadow: 0 0 0 transparent; }
+}
+
+.sip-value-flash {
+    animation: sipValueFlash 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Return value specific flash (white text, green glow) */
+@keyframes sipReturnFlash {
+    0% { text-shadow: 0 0 0 transparent; }
+    30% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.1); }
+    70% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.1); }
+    100% { text-shadow: 0 0 0 transparent; }
+}
+
+.sip-return-flash {
+    animation: sipReturnFlash 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Bar fill glow on change */
+@keyframes sipBarGlow {
+    0% { filter: brightness(1); }
+    30% { filter: brightness(1.4); }
+    100% { filter: brightness(1); }
+}
+
+.sip-bar-glow {
+    animation: sipBarGlow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Goal banner slide-in */
+@keyframes sipBannerSlide {
+    0% { opacity: 0; transform: translateY(-12px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.sip-banner-enter {
+    animation: sipBannerSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Mode switch ripple effect */
+@keyframes sipModeRipple {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    100% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+}
+
+.sip-mode-active {
+    animation: sipModeRipple 0.5s ease-out;
+}
+
+/* Card hover lift (consistent with glass-panel-hover but for metric cards) */
+.sip-card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sip-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -8px rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Light mode adjustments for sip animations */
+body.light-mode .sip-value-flash {
+    animation-name: sipReturnFlash;
+}
+
+body.light-mode .sip-card-hover:hover {
+    box-shadow: 0 8px 30px -8px rgba(16, 185, 129, 0.25);
+}
