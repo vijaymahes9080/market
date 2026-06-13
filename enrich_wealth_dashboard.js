@@ -2689,6 +2689,11 @@ async function fetchLiveMarketData() {
                     spotEl.value = price.toFixed(2);
                 }
                 document.getElementById('sipNiftyLive').innerText = '₹' + Math.round(price).toLocaleString('en-IN');
+                
+                // Real-time update of Option Chain, Payoff Curves, and metrics
+                if (state.activeDesk === 'options' || state.activeDesk === 'learner' || state.activeDesk === 'gold' || state.activeDesk === 'delivery') {
+                    updateAppLayout();
+                }
             }
             if (priceEl) {
                 priceEl.classList.remove('sip-value-flash');
