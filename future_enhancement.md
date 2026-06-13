@@ -188,6 +188,15 @@ Visualizing the IV skew (smile) helps traders see whether calls or puts are rela
 - Compute the IV for each option chain strike using a numerical search solver (e.g. Newton-Raphson approximation) on the Black-Scholes formula.
 - Chart the strikes on the X-axis and computed IV on the Y-axis using a Chart.js spline line configuration.
 
+### 3.3 Implied Volatility Rank (IV Rank) & Percentile
+IV Rank gauges whether current option premiums are relatively cheap or expensive by looking at the high/low IV range over the past year:
+$$\text{IV Rank} = \frac{\text{Current IV} - \text{Min IV}_{1Y}}{\text{Max IV}_{1Y} - \text{Min IV}_{1Y}} \times 100$$
+IV Percentile calculates the percentage of days in the past 252 trading days that volatility was below the current level.
+
+### 3.4 Multi-Scenario Stress Test Matrix (P&L Heatmap)
+A cross-dimensional matrix that stress-tests the multi-leg strategy's P&L under simultaneous changes in the underlying Spot Price (X-axis, e.g. -6% to +6%) and changes in Implied Volatility (Y-axis, e.g. -30% to +30%).
+- Color-coded cells (deep green for profit, deep red for loss) for immediate visual risk comprehension.
+
 ---
 
 ## 4. Product Roadmap Visual
@@ -201,5 +210,6 @@ graph TD
     D --> F["PWA Integration"]
     E --> F
     F --> G["Max Pain & IV Smile"]
-    G --> H["AI Portfolio Optimizer"]
+    G --> H["Stress Test P&L Matrix"]
+    H --> I["AI Portfolio Optimizer"]
 ```
