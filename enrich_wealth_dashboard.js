@@ -132,14 +132,39 @@ function calculateEMA21(closes, latestSpot) {
 }
 
 // Switch workspace tabs — supports 9 desks
+// HSL accent coordinates mapping for each desk
+const DESK_ACCENTS = {
+    learner: { h: 37, s: '90%', l: '50%' },      // Amber
+    options: { h: 161, s: '84%', l: '39%' },      // Brand Emerald
+    gold: { h: 45, s: '90%', l: '48%' },         // Yellow
+    delivery: { h: 226, s: '70%', l: '55%' },     // Indigo
+    child: { h: 262, s: '70%', l: '58%' },        // Violet
+    debt: { h: 350, s: '89%', l: '60%' },         // Rose
+    swp: { h: 188, s: '86%', l: '45%' },          // Cyan
+    goldReturns: { h: 45, s: '90%', l: '48%' },   // Yellow
+    asset: { h: 217, s: '91%', l: '60%' },        // Blue
+    sip: { h: 142, s: '70%', l: '45%' },          // Emerald
+    ppf: { h: 35, s: '90%', l: '40%' },           // Amber-600
+    nps: { h: 271, s: '76%', l: '53%' },          // Purple
+    fd: { h: 188, s: '86%', l: '45%' },           // Cyan
+    rd: { h: 162, s: '72%', l: '41%' },           // Teal
+    mfLumpsum: { h: 199, s: '89%', l: '48%' },    // Sky
+    retirement: { h: 350, s: '89%', l: '60%' },    // Rose
+    tax: { h: 24, s: '95%', l: '50%' },           // Orange
+    goldSpot: { h: 45, s: '90%', l: '48%' }       // Yellow
+};
+
+// Switch workspace tabs — supports 18 desks
 function switchDesk(desk) {
     state.activeDesk = desk;
+    
     // Hide all desk views
     ['optionsDeskView','goldDeskView','deliveryDeskView','learnerDeskView',
      'childDeskView','debtDeskView','swpDeskView','goldReturnsDeskView','assetDeskView',
      'sipDeskView','ppfDeskView','npsDeskView','fdDeskView','rdDeskView','mfLumpsumDeskView','retirementDeskView','taxDeskView',
      'goldSpotDeskView'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+    
     // Hide all sidebar containers
     ['optionsInputsContainer','goldInputsContainer','childInputsContainer',
      'debtInputsContainer','swpInputsContainer','goldReturnsInputsContainer','assetInputsContainer',
@@ -147,144 +172,127 @@ function switchDesk(desk) {
      'goldSpotInputsContainer'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
-    const badge = document.getElementById('deskTypeBadge');
-    const BASE = 'px-3 py-1.5 rounded-lg transition-all duration-200 text-slate-400 hover:text-white';
-    // Reset all tab buttons
-    ['tabOptionsBtn','tabGoldBtn','tabDeliveryBtn','tabLearnerBtn',
+    // Set accent HSL properties on root element for dynamic theme styling
+    const acc = DESK_ACCENTS[desk] || DESK_ACCENTS['learner'];
+    document.documentElement.style.setProperty('--accent-h', acc.h);
+    document.documentElement.style.setProperty('--accent-s', acc.s);
+    document.documentElement.style.setProperty('--accent-l', acc.l);
+
+    // Reset all drawer links
+    const tabIds = [
+     'tabOptionsBtn','tabGoldBtn','tabDeliveryBtn','tabLearnerBtn',
      'tabChildBtn','tabDebtBtn','tabSwpBtn','tabGoldReturnsBtn','tabAssetBtn',
      'tabSIPBtn','tabPPFBtn','tabNPSBtn','tabFDBtn','tabRDBtn','tabMFLumpsumBtn','tabRetirementBtn','tabTaxBtn','tabGoldSpotBtn'
-    ].forEach(id => {
-        const btn = document.getElementById(id); if (!btn) return;
-        if (id === 'tabDeliveryBtn' || id === 'tabLearnerBtn' || id === 'tabChildBtn' || id === 'tabSIPBtn')
-            btn.className = BASE + ' flex items-center gap-1.5';
-        else btn.className = BASE;
+    ];
+    tabIds.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('active');
     });
+
+    const badge = document.getElementById('deskTypeBadge');
+    
+    const deskInfo = {
+        options: { btn: 'tabOptionsBtn', name: 'Options Desk', badgeClass: 'text-[9px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-bold' },
+        gold: { btn: 'tabGoldBtn', name: 'Gold Desk', badgeClass: 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold' },
+        delivery: { btn: 'tabDeliveryBtn', name: 'Delivery Desk', badgeClass: 'text-[9px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold' },
+        learner: { btn: 'tabLearnerBtn', name: "Learner's Hub", badgeClass: 'text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold' },
+        child: { btn: 'tabChildBtn', name: 'Child Legacy', badgeClass: 'text-[9px] bg-violet-500/20 text-violet-400 border border-violet-500/30 px-2 py-0.5 rounded-full font-bold' },
+        debt: { btn: 'tabDebtBtn', name: 'Debt Engine', badgeClass: 'text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold' },
+        swp: { btn: 'tabSwpBtn', name: 'SWP Calculator', badgeClass: 'text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold' },
+        goldReturns: { btn: 'tabGoldReturnsBtn', name: 'Gold Returns', badgeClass: 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold' },
+        asset: { btn: 'tabAssetBtn', name: 'Asset Allocator', badgeClass: 'text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold' },
+        sip: { btn: 'tabSIPBtn', name: 'SIP Calculator', badgeClass: 'text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold' },
+        ppf: { btn: 'tabPPFBtn', name: 'PPF Calculator', badgeClass: 'text-[9px] bg-amber-600/20 text-amber-400 border border-amber-600/30 px-2 py-0.5 rounded-full font-bold' },
+        nps: { btn: 'tabNPSBtn', name: 'NPS Calculator', badgeClass: 'text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold' },
+        fd: { btn: 'tabFDBtn', name: 'FD Calculator', badgeClass: 'text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold' },
+        rd: { btn: 'tabRDBtn', name: 'RD Calculator', badgeClass: 'text-[9px] bg-teal-500/20 text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full font-bold' },
+        mfLumpsum: { btn: 'tabMFLumpsumBtn', name: 'MF Lumpsum', badgeClass: 'text-[9px] bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-bold' },
+        retirement: { btn: 'tabRetirementBtn', name: 'Retirement Calculator', badgeClass: 'text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold' },
+        tax: { btn: 'tabTaxBtn', name: 'Tax Calculator', badgeClass: 'text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-bold' },
+        goldSpot: { btn: 'tabGoldSpotBtn', name: 'Gold Price', badgeClass: 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold' }
+    };
+
+    const info = deskInfo[desk];
+    if (info) {
+        const activeLink = document.getElementById(info.btn);
+        if (activeLink) activeLink.classList.add('active');
+        if (badge) {
+            badge.innerText = info.name;
+            badge.className = info.badgeClass;
+        }
+    }
 
     if (desk === 'options') {
         document.getElementById('optionsDeskView').classList.remove('hidden');
         document.getElementById('optionsInputsContainer').classList.remove('hidden');
-        document.getElementById('tabOptionsBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-brand-500 text-slate-950 shadow';
-        badge.innerText = 'Options Desk';
-        badge.className = 'text-[9px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-bold';
         updateAppLayout();
     } else if (desk === 'gold') {
         document.getElementById('goldDeskView').classList.remove('hidden');
         document.getElementById('goldInputsContainer').classList.remove('hidden');
-        document.getElementById('tabGoldBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-yellow-500 text-slate-950 shadow';
-        badge.innerText = 'Gold Desk';
-        badge.className = 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold';
         updateAppLayout();
     } else if (desk === 'delivery') {
         document.getElementById('deliveryDeskView').classList.remove('hidden');
         document.getElementById('optionsInputsContainer').classList.remove('hidden');
-        document.getElementById('tabDeliveryBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-indigo-500 text-slate-950 shadow flex items-center gap-1.5';
-        badge.innerText = 'Delivery Desk';
-        badge.className = 'text-[9px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold';
     } else if (desk === 'learner') {
         document.getElementById('learnerDeskView').classList.remove('hidden');
         document.getElementById('optionsInputsContainer').classList.remove('hidden');
-        document.getElementById('tabLearnerBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-amber-500 text-slate-950 shadow flex items-center gap-1.5';
-        badge.innerText = "Learner's Hub";
-        badge.className = 'text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold';
         updateAppLayout();
     } else if (desk === 'child') {
         document.getElementById('childDeskView').classList.remove('hidden');
         document.getElementById('childInputsContainer').classList.remove('hidden');
-        document.getElementById('tabChildBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-violet-500 text-slate-950 shadow flex items-center gap-1.5';
-        badge.innerText = 'Child Legacy';
-        badge.className = 'text-[9px] bg-violet-500/20 text-violet-400 border border-violet-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateChildLegacy();
     } else if (desk === 'debt') {
         document.getElementById('debtDeskView').classList.remove('hidden');
         document.getElementById('debtInputsContainer').classList.remove('hidden');
-        document.getElementById('tabDebtBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-rose-500 text-slate-950 shadow';
-        badge.innerText = 'Debt Engine';
-        badge.className = 'text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateDebtEMI();
     } else if (desk === 'swp') {
         document.getElementById('swpDeskView').classList.remove('hidden');
         document.getElementById('swpInputsContainer').classList.remove('hidden');
-        document.getElementById('tabSwpBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-cyan-500 text-slate-950 shadow';
-        badge.innerText = 'SWP Calculator';
-        badge.className = 'text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateSWP();
     } else if (desk === 'goldReturns') {
         document.getElementById('goldReturnsDeskView').classList.remove('hidden');
         document.getElementById('goldReturnsInputsContainer').classList.remove('hidden');
-        document.getElementById('tabGoldReturnsBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-yellow-400 text-slate-950 shadow';
-        badge.innerText = 'Gold Returns';
-        badge.className = 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateGoldReturns();
     } else if (desk === 'asset') {
         document.getElementById('assetDeskView').classList.remove('hidden');
         document.getElementById('assetInputsContainer').classList.remove('hidden');
-        document.getElementById('tabAssetBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-blue-500 text-slate-950 shadow';
-        badge.innerText = 'Asset Allocator';
-        badge.className = 'text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateAssetAllocation();
     } else if (desk === 'sip') {
         document.getElementById('sipDeskView').classList.remove('hidden');
         document.getElementById('sipInputsContainer').classList.remove('hidden');
-        document.getElementById('tabSIPBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-emerald-500 text-slate-950 shadow flex items-center gap-1.5';
-        badge.innerText = 'SIP Calculator';
-        badge.className = 'text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateSIP();
         fetchLiveMarketData();
     } else if (desk === 'ppf') {
         document.getElementById('ppfDeskView').classList.remove('hidden');
         document.getElementById('ppfInputsContainer').classList.remove('hidden');
-        document.getElementById('tabPPFBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-amber-600 text-slate-950 shadow';
-        badge.innerText = 'PPF Calculator';
-        badge.className = 'text-[9px] bg-amber-600/20 text-amber-400 border border-amber-600/30 px-2 py-0.5 rounded-full font-bold';
         calculatePPF();
     } else if (desk === 'nps') {
         document.getElementById('npsDeskView').classList.remove('hidden');
         document.getElementById('npsInputsContainer').classList.remove('hidden');
-        document.getElementById('tabNPSBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-purple-500 text-slate-950 shadow';
-        badge.innerText = 'NPS Calculator';
-        badge.className = 'text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateNPS();
     } else if (desk === 'fd') {
         document.getElementById('fdDeskView').classList.remove('hidden');
         document.getElementById('fdInputsContainer').classList.remove('hidden');
-        document.getElementById('tabFDBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-cyan-500 text-slate-950 shadow';
-        badge.innerText = 'FD Calculator';
-        badge.className = 'text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateFD();
     } else if (desk === 'rd') {
         document.getElementById('rdDeskView').classList.remove('hidden');
         document.getElementById('rdInputsContainer').classList.remove('hidden');
-        document.getElementById('tabRDBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-teal-500 text-slate-950 shadow';
-        badge.innerText = 'RD Calculator';
-        badge.className = 'text-[9px] bg-teal-500/20 text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateRD();
     } else if (desk === 'mfLumpsum') {
         document.getElementById('mfLumpsumDeskView').classList.remove('hidden');
         document.getElementById('mfLumpsumInputsContainer').classList.remove('hidden');
-        document.getElementById('tabMFLumpsumBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-sky-500 text-slate-950 shadow';
-        badge.innerText = 'MF Lumpsum';
-        badge.className = 'text-[9px] bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateMFLumpsum();
     } else if (desk === 'retirement') {
         document.getElementById('retirementDeskView').classList.remove('hidden');
         document.getElementById('retirementInputsContainer').classList.remove('hidden');
-        document.getElementById('tabRetirementBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-rose-500 text-slate-950 shadow';
-        badge.innerText = 'Retirement Calculator';
-        badge.className = 'text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateRetirement();
     } else if (desk === 'tax') {
         document.getElementById('taxDeskView').classList.remove('hidden');
         document.getElementById('taxInputsContainer').classList.remove('hidden');
-        document.getElementById('tabTaxBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-orange-500 text-slate-950 shadow';
-        badge.innerText = 'Tax Calculator';
-        badge.className = 'text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateTax();
     } else if (desk === 'goldSpot') {
         document.getElementById('goldSpotDeskView').classList.remove('hidden');
         document.getElementById('goldSpotInputsContainer').classList.remove('hidden');
-        document.getElementById('tabGoldSpotBtn').className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-yellow-400 text-slate-950 shadow';
-        badge.innerText = 'Gold Price';
-        badge.className = 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold';
         calculateGoldSpot();
     }
 }
@@ -844,10 +852,6 @@ function updateStrategyPayoffCurves() {
     if (!payoffChartCanvas) return;
     const ctx = payoffChartCanvas.getContext('2d');
 
-    if (payoffChartInstance) {
-        payoffChartInstance.destroy();
-    }
-
     const isLight = document.body.classList.contains('light-mode');
     const gridColor = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(51, 65, 85, 0.15)';
     const tickColor = isLight ? '#475569' : '#94a3b8';
@@ -856,58 +860,74 @@ function updateStrategyPayoffCurves() {
     const tooltipBody = isLight ? '#0f172a' : '#e2e8f0';
     const tooltipTitle = isLight ? '#0f172a' : '#fff';
 
-    payoffChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: payoffPoints.map(p => `₹${p.spot.toLocaleString()}`),
-            datasets: [{
-                label: 'Net Payoff at Expiration',
-                data: payoffPoints.map(p => Math.round(p.val)),
-                borderColor: '#10b981',
-                backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
-                fill: true,
-                borderWidth: 2,
-                pointRadius: 0,
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    grid: { color: gridColor },
-                    ticks: { color: tickColor, font: { family: 'Plus Jakarta Sans', size: 9 }, maxTicksLimit: 8 }
-                },
-                y: {
-                    grid: { color: gridColor },
-                    ticks: {
-                        color: tickColor,
-                        font: { family: 'Plus Jakarta Sans', size: 9 },
-                        callback: function(value) {
-                            return (value >= 0 ? '+' : '') + '₹' + value.toLocaleString('en-IN');
+    if (payoffChartInstance) {
+        payoffChartInstance.data.labels = payoffPoints.map(p => `₹${p.spot.toLocaleString()}`);
+        payoffChartInstance.data.datasets[0].data = payoffPoints.map(p => Math.round(p.val));
+        payoffChartInstance.options.scales.x.grid.color = gridColor;
+        payoffChartInstance.options.scales.x.ticks.color = tickColor;
+        payoffChartInstance.options.scales.y.grid.color = gridColor;
+        payoffChartInstance.options.scales.y.ticks.color = tickColor;
+        
+        payoffChartInstance.options.plugins.tooltip.backgroundColor = tooltipBg;
+        payoffChartInstance.options.plugins.tooltip.borderColor = tooltipBorder;
+        payoffChartInstance.options.plugins.tooltip.titleColor = tooltipTitle;
+        payoffChartInstance.options.plugins.tooltip.bodyColor = tooltipBody;
+        
+        payoffChartInstance.update();
+    } else {
+        payoffChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: payoffPoints.map(p => `₹${p.spot.toLocaleString()}`),
+                datasets: [{
+                    label: 'Net Payoff at Expiration',
+                    data: payoffPoints.map(p => Math.round(p.val)),
+                    borderColor: '#10b981',
+                    backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: tickColor, font: { family: 'Plus Jakarta Sans', size: 9 }, maxTicksLimit: 8 }
+                    },
+                    y: {
+                        grid: { color: gridColor },
+                        ticks: {
+                            color: tickColor,
+                            font: { family: 'Plus Jakarta Sans', size: 9 },
+                            callback: function(value) {
+                                return (value >= 0 ? '+' : '') + '₹' + value.toLocaleString('en-IN');
+                            }
                         }
                     }
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: tooltipBg,
-                    borderColor: tooltipBorder,
-                    borderWidth: 1,
-                    titleColor: tooltipTitle,
-                    bodyColor: tooltipBody,
-                    bodyFont: { family: 'JetBrains Mono', size: 9 },
-                    callbacks: {
-                        label: function(context) {
-                            return 'Payoff: ' + (context.raw >= 0 ? '+' : '') + '₹' + context.raw.toLocaleString('en-IN');
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: tooltipBg,
+                        borderColor: tooltipBorder,
+                        borderWidth: 1,
+                        titleColor: tooltipTitle,
+                        bodyColor: tooltipBody,
+                        bodyFont: { family: 'JetBrains Mono', size: 9 },
+                        callbacks: {
+                            label: function(context) {
+                                return 'Payoff: ' + (context.raw >= 0 ? '+' : '') + '₹' + context.raw.toLocaleString('en-IN');
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 }
 
 // Render dynamic Sector Heatmap items
@@ -1890,6 +1910,9 @@ window.onload = function() {
     // Set default tab to Learner's Hub
     switchDesk('learner');
 
+    // Initialize Command Palette key listeners
+    initCommandPalette();
+
     updateAppLayout();
 }
 
@@ -2383,81 +2406,99 @@ function calculateSIP() {
     const canvas = document.getElementById('sipGrowthChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    if (sipGrowthChartInstance) sipGrowthChartInstance.destroy();
-
     const isLight = document.body.classList.contains('light-mode');
     const gridColor = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(51, 65, 85, 0.15)';
     const tickColor = isLight ? '#475569' : '#94a3b8';
     const legendColor = isLight ? '#0f172a' : '#f8fafc';
 
-    sipGrowthChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: yearlyData.map(d => 'Yr ' + d.year),
-            datasets: [
-                {
-                    label: 'Portfolio Value',
-                    data: yearlyData.map(d => d.value),
-                    borderColor: '#10b981',
-                    backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
-                    fill: true,
-                    borderWidth: 2,
-                    pointRadius: yearlyData.length <= 15 ? 3 : 0,
-                    tension: 0.3
-                },
-                {
-                    label: 'Total Invested',
-                    data: yearlyData.map(d => d.invested),
-                    borderColor: '#64748b',
-                    borderDash: [5, 5],
-                    borderWidth: 1.5,
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    grid: { color: gridColor },
-                    ticks: { color: tickColor, font: { family: 'Plus Jakarta Sans', size: 9 }, maxTicksLimit: 10 }
-                },
-                y: {
-                    grid: { color: gridColor },
-                    ticks: {
-                        color: tickColor,
-                        font: { family: 'Plus Jakarta Sans', size: 9 },
-                        callback: function(value) {
-                            if (value >= 10000000) return '₹' + (value / 10000000).toFixed(1) + 'Cr';
-                            if (value >= 100000) return '₹' + (value / 100000).toFixed(1) + 'L';
-                            return '₹' + value.toLocaleString('en-IN');
+    if (sipGrowthChartInstance) {
+        sipGrowthChartInstance.data.labels = yearlyData.map(d => 'Yr ' + d.year);
+        sipGrowthChartInstance.data.datasets[0].data = yearlyData.map(d => d.value);
+        sipGrowthChartInstance.data.datasets[0].pointRadius = yearlyData.length <= 15 ? 3 : 0;
+        sipGrowthChartInstance.data.datasets[1].data = yearlyData.map(d => d.invested);
+        
+        sipGrowthChartInstance.options.scales.x.grid.color = gridColor;
+        sipGrowthChartInstance.options.scales.x.ticks.color = tickColor;
+        sipGrowthChartInstance.options.scales.y.grid.color = gridColor;
+        sipGrowthChartInstance.options.scales.y.ticks.color = tickColor;
+        sipGrowthChartInstance.options.plugins.legend.labels.color = legendColor;
+        
+        sipGrowthChartInstance.options.plugins.tooltip.backgroundColor = isLight ? '#ffffff' : '#020617';
+        sipGrowthChartInstance.options.plugins.tooltip.borderColor = isLight ? '#cbd5e1' : '#1e293b';
+        sipGrowthChartInstance.options.plugins.tooltip.titleColor = isLight ? '#0f172a' : '#fff';
+        sipGrowthChartInstance.options.plugins.tooltip.bodyColor = isLight ? '#0f172a' : '#e2e8f0';
+        
+        sipGrowthChartInstance.update();
+    } else {
+        sipGrowthChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: yearlyData.map(d => 'Yr ' + d.year),
+                datasets: [
+                    {
+                        label: 'Portfolio Value',
+                        data: yearlyData.map(d => d.value),
+                        borderColor: '#10b981',
+                        backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: yearlyData.length <= 15 ? 3 : 0,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Total Invested',
+                        data: yearlyData.map(d => d.invested),
+                        borderColor: '#64748b',
+                        borderDash: [5, 5],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: tickColor, font: { family: 'Plus Jakarta Sans', size: 9 }, maxTicksLimit: 10 }
+                    },
+                    y: {
+                        grid: { color: gridColor },
+                        ticks: {
+                            color: tickColor,
+                            font: { family: 'Plus Jakarta Sans', size: 9 },
+                            callback: function(value) {
+                                if (value >= 10000000) return '₹' + (value / 10000000).toFixed(1) + 'Cr';
+                                if (value >= 100000) return '₹' + (value / 100000).toFixed(1) + 'L';
+                                return '₹' + value.toLocaleString('en-IN');
+                            }
                         }
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: { color: legendColor, boxWidth: 10, font: { family: 'Plus Jakarta Sans', size: 10 } }
                 },
-                tooltip: {
-                    backgroundColor: isLight ? '#ffffff' : '#020617',
-                    borderColor: isLight ? '#cbd5e1' : '#1e293b',
-                    borderWidth: 1,
-                    titleColor: isLight ? '#0f172a' : '#fff',
-                    bodyColor: isLight ? '#0f172a' : '#e2e8f0',
-                    bodyFont: { family: 'JetBrains Mono', size: 9 },
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ₹' + context.raw.toLocaleString('en-IN');
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: legendColor, boxWidth: 10, font: { family: 'Plus Jakarta Sans', size: 10 } }
+                    },
+                    tooltip: {
+                        backgroundColor: isLight ? '#ffffff' : '#020617',
+                        borderColor: isLight ? '#cbd5e1' : '#1e293b',
+                        borderWidth: 1,
+                        titleColor: isLight ? '#0f172a' : '#fff',
+                        bodyColor: isLight ? '#0f172a' : '#e2e8f0',
+                        bodyFont: { family: 'JetBrains Mono', size: 9 },
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ₹' + context.raw.toLocaleString('en-IN');
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 }
 
 // =================================================================
@@ -3112,4 +3153,146 @@ function calculateGoldSpot() {
     document.getElementById('gspTotalPrice').innerText = fmt(totalPrice);
     document.getElementById('gspPerGram').innerText = fmt(perGram) + '/g';
     document.getElementById('gspPremium').innerText = '+' + goldPremium.toFixed(1) + '%';
+}
+
+// =================================================================
+// COMMAND PALETTE INTEGRATION
+// =================================================================
+const COMMAND_DESKS = [
+    { key: 'learner', name: "Learner's Hub (Get started, Option chain guide)" },
+    { key: 'options', name: "Options Desk (Strategy payoff builder, Black-Scholes solver)" },
+    { key: 'gold', name: "Precious Metals Desk (Appreciation vs inflation model)" },
+    { key: 'delivery', name: "Delivery Hub (System cron testing tools)" },
+    { key: 'child', name: "Child Legacy (Child milestone goal tracking)" },
+    { key: 'debt', name: "Debt Engine (Prepayments & EMI saver)" },
+    { key: 'swp', name: "SWP Calc (Systematic Withdrawal Plan planner)" },
+    { key: 'goldReturns', name: "Gold Returns (Physical vs ETF vs SGB yields)" },
+    { key: 'asset', name: "Asset Allocator (Diversification & risk rebalancing)" },
+    { key: 'sip', name: "SIP Calc (Step-up & Goal-based regular planner)" },
+    { key: 'ppf', name: "PPF (Public Provident Fund compounding)" },
+    { key: 'nps', name: "NPS (National Pension System annuity estimator)" },
+    { key: 'fd', name: "FD (Fixed Deposit payout simulator)" },
+    { key: 'rd', name: "RD (Recurring Deposit compounds)" },
+    { key: 'mfLumpsum', name: "MF Lumpsum (Mutual fund compounding)" },
+    { key: 'retirement', name: "Retirement (Corpus target and monthly expense calculator)" },
+    { key: 'tax', name: "Tax Calc (Old vs New Regime income tax comparison)" },
+    { key: 'goldSpot', name: "Gold Price (Making charges & GST calculator)" }
+];
+
+let activeCommandIndex = -1;
+
+function initCommandPalette() {
+    const backdrop = document.getElementById('commandPalette');
+    const input = document.getElementById('commandInput');
+    const resultsContainer = document.getElementById('commandResults');
+
+    if (!backdrop || !input || !resultsContainer) return;
+
+    // Toggle Palette with Ctrl+K
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            toggleCommandPalette();
+        }
+        if (e.key === 'Escape' && backdrop.classList.contains('open')) {
+            closeCommandPalette();
+        }
+    });
+
+    backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) {
+            closeCommandPalette();
+        }
+    });
+
+    input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        renderCommandResults(query);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        const items = resultsContainer.querySelectorAll('.command-palette-item');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeCommandIndex = (activeCommandIndex + 1) % items.length;
+            highlightCommandItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeCommandIndex = (activeCommandIndex - 1 + items.length) % items.length;
+            highlightCommandItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeCommandIndex >= 0 && activeCommandIndex < items.length) {
+                items[activeCommandIndex].click();
+            } else if (items.length > 0) {
+                items[0].click();
+            }
+        }
+    });
+}
+
+function toggleCommandPalette() {
+    const backdrop = document.getElementById('commandPalette');
+    const input = document.getElementById('commandInput');
+    if (!backdrop || !input) return;
+
+    const isOpen = backdrop.classList.contains('open');
+    if (isOpen) {
+        closeCommandPalette();
+    } else {
+        backdrop.classList.add('open');
+        input.value = '';
+        activeCommandIndex = -1;
+        renderCommandResults('');
+        setTimeout(() => input.focus(), 50);
+    }
+}
+
+function closeCommandPalette() {
+    const backdrop = document.getElementById('commandPalette');
+    if (backdrop) backdrop.classList.remove('open');
+}
+
+function renderCommandResults(query) {
+    const container = document.getElementById('commandResults');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const filtered = COMMAND_DESKS.filter(d => 
+        d.name.toLowerCase().includes(query) || 
+        d.key.toLowerCase().includes(query)
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-4 text-xs text-slate-500 text-center">No matching desks found. Try "options", "sip" or "gold".</div>';
+        return;
+    }
+
+    filtered.forEach((d, idx) => {
+        const div = document.createElement('div');
+        div.className = `command-palette-item ${idx === activeCommandIndex ? 'selected' : ''}`;
+        div.dataset.key = d.key;
+        div.innerHTML = `
+            <span>${d.name}</span>
+            <span class="command-shortcut text-[9px] uppercase font-mono text-slate-500">Go</span>
+        `;
+        div.addEventListener('click', () => {
+            switchDesk(d.key);
+            closeCommandPalette();
+        });
+        container.appendChild(div);
+    });
+}
+
+function highlightCommandItem(items) {
+    items.forEach((item, idx) => {
+        if (idx === activeCommandIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
 }
