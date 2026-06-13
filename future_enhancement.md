@@ -141,7 +141,56 @@ self.addEventListener('fetch', e => {
 
 ---
 
-## 3. Product Roadmap Visual
+## 3. Advanced Derivative Engineering Modules
+
+### 3.1 Options Max Pain Calculator
+Max Pain is the strike price where option sellers face the least aggregate loss at expiration. Implementing this helps options traders identify key market magnets.
+
+#### Mathematical Formulation & Code Snippet:
+For each test strike $K_{test}$, calculate the cumulative value of calls and puts assuming spot price expires exactly at $K_{test}$:
+$$\text{Call Loss} = \sum \text{Call OI} \times \max(K_{test} - K, 0)$$
+$$\text{Put Loss} = \sum \text{Put OI} \times \max(K - K_{test}, 0)$$
+$$\text{Total Pain}(K_{test}) = \text{Call Loss} + \text{Put Loss}$$
+
+```javascript
+function findMaxPain(strikes, callsOI, putsOI) {
+    let minPain = Infinity;
+    let maxPainStrike = strikes[0];
+
+    strikes.forEach(testStrike => {
+        let totalPain = 0;
+        strikes.forEach((strike, idx) => {
+            const callOI = callsOI[idx] || 0;
+            const putOI = putsOI[idx] || 0;
+            
+            // Call loss for sellers
+            if (testStrike > strike) {
+                totalPain += callOI * (testStrike - strike);
+            }
+            // Put loss for sellers
+            if (testStrike < strike) {
+                totalPain += putOI * (strike - testStrike);
+            }
+        });
+
+        if (totalPain < minPain) {
+            minPain = totalPain;
+            maxPainStrike = testStrike;
+        }
+    });
+
+    return maxPainStrike;
+}
+```
+
+### 3.2 Implied Volatility (IV) Smile Curve
+Visualizing the IV skew (smile) helps traders see whether calls or puts are relatively overpriced.
+- Compute the IV for each option chain strike using a numerical search solver (e.g. Newton-Raphson approximation) on the Black-Scholes formula.
+- Chart the strikes on the X-axis and computed IV on the Y-axis using a Chart.js spline line configuration.
+
+---
+
+## 4. Product Roadmap Visual
 
 ```mermaid
 graph TD
@@ -151,5 +200,6 @@ graph TD
     C --> E["Excel/PDF Exporting"]
     D --> F["PWA Integration"]
     E --> F
-    F --> G["AI Portfolio Optimizer"]
+    F --> G["Max Pain & IV Smile"]
+    G --> H["AI Portfolio Optimizer"]
 ```
