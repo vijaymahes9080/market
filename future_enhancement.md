@@ -2,54 +2,6 @@
 
 This roadmap outlines high-priority, medium-priority, and long-term technical enhancements for the VJ Analysing the Market Derivative & Wealth Console. It includes implementation guidance, system architecture patterns, and code snippets to guide future updates.
 
----
-
-## 1. High-Priority Architecture Upgrades
-
-### 1.1 Dedicated CORS Proxy (Cloudflare Worker)
-To eliminate reliance on unreliable free CORS proxies (which frequently return 403 or throttle requests), deploy a dedicated serverless Cloudflare Worker.
-
-#### Implementation Pattern:
-Create a Cloudflare Worker with the following script to proxy Yahoo Finance requests:
-
-```javascript
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
-
-async function handleRequest(request) {
-  const url = new URL(request.url).searchParams.get('url')
-  if (!url) {
-    return new Response('Missing URL parameter', { status: 400 })
-  }
-
-  // Define allowed domains for security
-  const targetUrl = new URL(url)
-  if (!targetUrl.hostname.endsWith('yahoo.com') && !targetUrl.hostname.endsWith('finance.yahoo.com')) {
-    return new Response('Unauthorized target host', { status: 403 })
-  }
-
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-  })
-
-  // Return response with CORS headers
-  const newHeaders = new Headers(response.headers)
-  newHeaders.set('Access-Control-Allow-Origin', '*')
-  newHeaders.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: newHeaders
-  })
-}
-```
-
----
-
 ### 1.2 Real-time WebSocket Data
 Integrate a persistent WebSocket connection (e.g., via Finnhub, TradingView, or a custom socket gateway) to support live streaming tickers for NIFTY, SENSEX, and Sectoral indices.
 
@@ -109,37 +61,6 @@ function exportTableToCSV(dataRows, filename) {
 ### 2.2 Compare Mode
 Enable side-by-side comparison of different scenarios (e.g., comparing a Regular SIP vs. a Step-Up SIP, or FD vs. RD vs. PPF yields over the same horizon).
 
----
-
-### 2.3 Progressive Web App (PWA) Offline Support
-Turn the application into a standalone desktop/mobile app that runs offline by adding a web app manifest and registering a service worker for caching assets (Tailwind CSS, Chart.js, and Plus Jakarta Fonts).
-
-#### Service Worker Cache Implementation:
-```javascript
-const CACHE_NAME = 'vj-market-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/enrich_wealth_dashboard.css',
-  '/enrich_wealth_dashboard.js',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js'
-];
-
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-  );
-});
-
-self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(response => response || fetch(e.request))
-  );
-});
-```
-
----
 
 ## 3. Advanced Derivative Engineering Modules
 
