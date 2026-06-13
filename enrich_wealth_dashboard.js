@@ -31,7 +31,7 @@ const state = {
     digitalStorage: 0.05,
 
     // Beginner Mode & Simulator
-    beginnerMode: true,
+    beginnerMode: false,
     simOptionType: 'CALL',
     simStrike: 23600,
     simPremium: 100,
@@ -51,6 +51,9 @@ const HISTORICAL_NIFTY_CLOSES = [
 
 // Chart instances
 let payoffChartInstance = null;
+let optionChartMode = 'payoff';
+let historicalIVs = [];
+let latestTickerResults = [];
 let goldAppreciationChartInstance = null;
 let childLegacyChartInstance = null;
 let debtAmortChartInstance = null;
@@ -78,7 +81,608 @@ function cnd(x) {
     return w;
 }
 
-// Probability Density Function (PDF)
+}
+
+function findMaxPain(strikes, callsOI, putsOI) {
+    let minPain = Infinity;
+    let maxPainStrike = strikes[0];
+
+    strikes.forEach(testStrike => {
+        let totalPain = 0;
+        strikes.forEach((strike, idx) => {
+            const callOI = callsOI[idx] || 0;
+            const putOI = putsOI[idx] || 0;
+            
+            // Call loss for sellers
+            if (testStrike > strike) {
+                totalPain += callOI * (testStrike - strike);
+            }
+            // Put loss for sellers
+            if (testStrike < strike) {
+                totalPain += putOI * (strike - testStrike);
+            }
+        });
+
+        if (totalPain < minPain) {
+            minPain = totalPain;
+            maxPainStrike = testStrike;
+        }
+    });
+
+    return maxPainStrike;
+}
+
+function blackScholesPrice(S, K, T_days, r_annual, sigma_annual, optionType) {
+    const T = Math.max(0.0001, T_days / 365.0);
+    const r = r_annual / 100.0;
+    const sigma = sigma_annual / 100.0;
+
+    const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+    const d2 = d1 - sigma * Math.sqrt(T);
+
+    if (optionType === 'CALL') {
+        return S * cnd(d1) - K * Math.exp(-r * T) * cnd(d2);
+    } else {
+        return K * Math.exp(-r * T) * cnd(-d2) - S * cnd(-d1);
+    }
+}
+
+function findImpliedVolatility(marketPrice, S, K, T_days, r_annual, optionType) {
+    let low = 0.1; 
+    let high = 500.0; 
+    let mid = 20.0;
+    
+    const intrinsic = Math.max(0, optionType === 'CALL' ? S - K : K - S);
+    if (marketPrice <= intrinsic) return 0.1;
+    
+    for (let i = 0; i < 40; i++) {
+        const price = blackScholesPrice(S, K, T_days, r_annual, mid, optionType);
+        if (Math.abs(price - marketPrice) < 0.01) {
+            return mid;
+        }
+        if (price > marketPrice) {
+            high = mid;
+        } else {
+            low = mid;
+        }
+        mid = (low + high) / 2;
+    }
+    return mid;
+}
+
+function seedHistoricalIVs() {
+    if (historicalIVs.length > 0) return;
+    let baseIV = 15.0; 
+    for (let i = 0; i < 252; i++) {
+        const change = (Math.sin(i / 10) * 2 + Math.cos(i / 5) * 1.5 + (i % 7 === 0 ? 1 : -1) * 0.5);
+        historicalIVs.push(Math.max(8.0, Math.min(45.0, baseIV + change)));
+    }
+}
+
+function updateIVRankAndPercentile() {
+    seedHistoricalIVs();
+    const currentIV = state.volatility;
+    
+    const minIV = Math.min(...historicalIVs);
+    const maxIV = Math.max(...historicalIVs);
+    
+    const ivRank = ((currentIV - minIV) / (maxIV - minIV)) * 100;
+    
+    const daysBelow = historicalIVs.filter(iv => iv < currentIV).length;
+    const ivPercentile = (daysBelow / historicalIVs.length) * 100;
+    
+    const rankEl = document.getElementById('optChainIvRank');
+    if (rankEl) rankEl.innerText = Math.max(0, Math.min(100, ivRank)).toFixed(1) + '%';
+    
+    const pctlEl = document.getElementById('optChainIvPercentile');
+    if (pctlEl) pctlEl.innerText = Math.max(0, Math.min(100, ivPercentile)).toFixed(1) + '%';
+}
+
+function calculateStressPL(spotShift, volShift) {
+    const S = state.spotPrice;
+    const IV = state.volatility;
+    const days = Math.max(0.5, state.daysToExpiry);
+    
+    let totalPL = 0;
+    
+    state.legs.forEach(leg => {
+        const K = leg.strike;
+        const prem = leg.premium;
+        const mult = leg.multiplier;
+        const type = leg.type;
+        
+        const S_scen = S * (1 + spotShift);
+        const IV_scen = Math.max(1.0, IV * (1 + volShift));
+        
+        const newGreeks = calculateGreeks(S_scen, K, days, 6.0, IV_scen, type);
+        const newPrice = newGreeks.price;
+        
+        let legPL = 0;
+        if (leg.position === 'LONG') {
+            legPL = (newPrice - prem) * mult;
+        } else {
+            legPL = (prem - newPrice) * mult;
+        }
+        totalPL += legPL;
+    });
+    
+    return totalPL;
+}
+
+function renderStressMatrix() {
+    const body = document.getElementById('optionsStressMatrixBody');
+    if (!body) return;
+    body.innerHTML = '';
+    
+    const spotShifts = [-0.06, -0.03, 0, 0.03, 0.06];
+    const volShifts = [0.20, 0.10, 0, -0.10, -0.20]; 
+    
+    volShifts.forEach(vShift => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-850 text-slate-300 font-mono';
+        
+        const labelCell = document.createElement('td');
+        labelCell.className = 'py-3 px-2 bg-slate-950 font-bold border-r border-slate-800 text-left text-slate-400';
+        labelCell.innerText = (vShift >= 0 ? '+' : '') + Math.round(vShift * 100) + '% Vol';
+        tr.appendChild(labelCell);
+        
+        spotShifts.forEach(sShift => {
+            const pl = calculateStressPL(sShift, vShift);
+            const cell = document.createElement('td');
+            cell.className = 'py-3 px-2 border-r border-slate-800/40 font-bold text-center';
+            cell.innerText = (pl >= 0 ? '+' : '') + '₹' + Math.round(pl).toLocaleString('en-IN');
+            
+            if (pl > 5000) {
+                cell.className += ' stress-profit-strong';
+            } else if (pl > 1000) {
+                cell.className += ' stress-profit-medium';
+            } else if (pl > 0) {
+                cell.className += ' stress-profit-light';
+            } else if (pl < -5000) {
+                cell.className += ' stress-loss-strong';
+            } else if (pl < -1000) {
+                cell.className += ' stress-loss-medium';
+            } else if (pl < 0) {
+                cell.className += ' stress-loss-light';
+            } else {
+                cell.className += ' stress-neutral';
+            }
+            
+            tr.appendChild(cell);
+        });
+        
+        body.appendChild(tr);
+    });
+}
+
+function toggleOptionChartMode(mode) {
+    optionChartMode = mode;
+    const payoffBtn = document.getElementById('chartPayoffBtn');
+    const ivsmileBtn = document.getElementById('chartIvSmileBtn');
+    if (payoffBtn && ivsmileBtn) {
+        if (mode === 'payoff') {
+            payoffBtn.className = 'px-2.5 py-1 rounded bg-brand-500 text-slate-950 shadow font-extrabold';
+            ivsmileBtn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white font-extrabold';
+        } else {
+            payoffBtn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white font-extrabold';
+            ivsmileBtn.className = 'px-2.5 py-1 rounded bg-brand-500 text-slate-950 shadow font-extrabold';
+        }
+    }
+    updateStrategyPayoffCurves();
+}
+
+function exportToCSV(calcType) {
+    const data = state.lastCalculationData;
+    if (!data || data.type !== calcType) {
+        alert("Please run the calculation first.");
+        return;
+    }
+    
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += `${calcType} Calculator Detailed Report\n`;
+    csvContent += `Generated on,${new Date().toLocaleString('en-IN')}\n\n`;
+    
+    csvContent += "Input Parameters\n";
+    Object.entries(data.inputs).forEach(([k, v]) => {
+        csvContent += `${k},${v}\n`;
+    });
+    csvContent += "\nSummary Results\n";
+    Object.entries(data.results).forEach(([k, v]) => {
+        csvContent += `${k},${Math.round(v)}\n`;
+    });
+    
+    if (data.schedule && data.schedule.length > 0) {
+        csvContent += "\nBreakdown Schedule\n";
+        if (calcType === 'SIP' || calcType === 'PPF' || calcType === 'Lumpsum') {
+            csvContent += "Year,Yearly Investment,Total Invested,Portfolio Value\n";
+            data.schedule.forEach(row => {
+                csvContent += `${row.year},${row.invested || 0},${row.invested || 0},${row.value}\n`;
+            });
+        } else if (calcType === 'SWP') {
+            csvContent += "Year,Portfolio Value\n";
+            data.schedule.forEach(row => {
+                csvContent += `${row.year},${row.value}\n`;
+            });
+        } else if (calcType === 'Debt') {
+            csvContent += "Month,Opening Balance,EMI,Principal,Interest,Prepayment,Closing Balance\n";
+            data.schedule.forEach(row => {
+                csvContent += `${row.month},${row.open},${row.emi},${row.principal},${row.interest},${row.prepay},${row.close}\n`;
+            });
+        }
+    }
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${calcType}_Report_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function exportToPDF(calcType) {
+    const data = state.lastCalculationData;
+    if (!data || data.type !== calcType) {
+        alert("Please run the calculation first.");
+        return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFillColor(15, 23, 42); 
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(`VJ ANALYSING THE MARKET`, 15, 18);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`${calcType.toUpperCase()} CALCULATOR DETAILED REPORT`, 15, 28);
+    
+    const nowStr = new Date().toLocaleString('en-IN');
+    doc.text(`Date: ${nowStr}`, 150, 28);
+    
+    doc.setDrawColor(226, 232, 240); 
+    doc.setLineWidth(0.5);
+    doc.line(15, 45, 195, 45);
+    
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("SUMMARY METRICS", 15, 55);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    let yPos = 65;
+    
+    Object.entries(data.results).forEach(([k, v]) => {
+        if (typeof v === 'number') {
+            doc.text(`${k.replace(/([A-Z])/g, ' $1').toUpperCase()}:`, 15, yPos);
+            doc.text(`Rs. ${Math.round(v).toLocaleString('en-IN')}`, 80, yPos);
+        } else {
+            doc.text(`${k.toUpperCase()}:`, 15, yPos);
+            doc.text(`${v}`, 80, yPos);
+        }
+        yPos += 8;
+    });
+    
+    yPos += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text("INPUT PARAMETERS", 15, yPos);
+    yPos += 10;
+    
+    doc.setFont("helvetica", "normal");
+    Object.entries(data.inputs).forEach(([k, v]) => {
+        doc.text(`${k.replace(/([A-Z])/g, ' $1').toUpperCase()}:`, 15, yPos);
+        doc.text(`${v}`, 80, yPos);
+        yPos += 8;
+    });
+    
+    if (data.schedule && data.schedule.length > 0) {
+        yPos += 10;
+        doc.setFont("helvetica", "bold");
+        doc.text("SCHEDULE BREAKDOWN", 15, yPos);
+        yPos += 10;
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        if (calcType === 'SIP' || calcType === 'PPF' || calcType === 'Lumpsum') {
+            doc.text("Year", 15, yPos);
+            doc.text("Total Invested", 50, yPos);
+            doc.text("Portfolio Value", 110, yPos);
+            
+            doc.setFont("helvetica", "normal");
+            data.schedule.forEach(row => {
+                yPos += 7;
+                if (yPos > 280) { doc.addPage(); yPos = 20; }
+                doc.text(`${row.year}`, 15, yPos);
+                doc.text(`Rs. ${Math.round(row.invested || 0).toLocaleString('en-IN')}`, 50, yPos);
+                doc.text(`Rs. ${Math.round(row.value).toLocaleString('en-IN')}`, 110, yPos);
+            });
+        } else if (calcType === 'SWP') {
+            doc.text("Year", 15, yPos);
+            doc.text("Portfolio Value", 60, yPos);
+            
+            doc.setFont("helvetica", "normal");
+            data.schedule.forEach(row => {
+                yPos += 7;
+                if (yPos > 280) { doc.addPage(); yPos = 20; }
+                doc.text(`${row.year}`, 15, yPos);
+                doc.text(`Rs. ${Math.round(row.value).toLocaleString('en-IN')}`, 60, yPos);
+            });
+        } else if (calcType === 'Debt') {
+            doc.text("Month", 15, yPos);
+            doc.text("EMI", 35, yPos);
+            doc.text("Principal Pay", 65, yPos);
+            doc.text("Interest Pay", 105, yPos);
+            doc.text("Remaining Bal", 145, yPos);
+            
+            doc.setFont("helvetica", "normal");
+            data.schedule.forEach(row => {
+                if (row.month % 12 === 0 || row.month === 1 || row.month === data.schedule.length) {
+                    yPos += 7;
+                    if (yPos > 280) { doc.addPage(); yPos = 20; doc.setFont("helvetica", "bold"); doc.text("Month", 15, yPos); doc.text("EMI", 35, yPos); doc.text("Principal Pay", 65, yPos); doc.text("Interest Pay", 105, yPos); doc.text("Remaining Bal", 145, yPos); doc.setFont("helvetica", "normal"); yPos += 7; }
+                    doc.text(`${row.month} (${Math.round(row.month/12)} yr)`, 15, yPos);
+                    doc.text(`Rs. ${Math.round(row.emi).toLocaleString('en-IN')}`, 35, yPos);
+                    doc.text(`Rs. ${Math.round(row.principal).toLocaleString('en-IN')}`, 65, yPos);
+                    doc.text(`Rs. ${Math.round(row.interest).toLocaleString('en-IN')}`, 105, yPos);
+                    doc.text(`Rs. ${Math.round(row.close).toLocaleString('en-IN')}`, 145, yPos);
+                }
+            });
+        }
+    } else if (calcType === 'Tax') {
+        yPos += 10;
+        doc.setFont("helvetica", "bold");
+        doc.text("TAX COMPARISON DETAILS", 15, yPos);
+        yPos += 10;
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Regime", 15, yPos);
+        doc.text("Taxable Income", 45, yPos);
+        doc.text("Income Tax", 85, yPos);
+        doc.text("Cess (4%)", 125, yPos);
+        doc.text("Total Liability", 165, yPos);
+        
+        doc.setFont("helvetica", "normal");
+        yPos += 8;
+        doc.text("Old", 15, yPos);
+        doc.text(`Rs. ${Math.round(data.results.oldTaxable).toLocaleString('en-IN')}`, 45, yPos);
+        doc.text(`Rs. ${Math.round(data.results.oldTotal - (data.results.oldTotal * 4/104)).toLocaleString('en-IN')}`, 85, yPos);
+        doc.text(`Rs. ${Math.round(data.results.oldTotal * 4/104).toLocaleString('en-IN')}`, 125, yPos);
+        doc.text(`Rs. ${Math.round(data.results.oldTotal).toLocaleString('en-IN')}`, 165, yPos);
+        
+        yPos += 8;
+        doc.text("New", 15, yPos);
+        doc.text(`Rs. ${Math.round(data.results.newTaxable).toLocaleString('en-IN')}`, 45, yPos);
+        doc.text(`Rs. ${Math.round(data.results.newTotal - (data.results.newTotal * 4/104)).toLocaleString('en-IN')}`, 85, yPos);
+        doc.text(`Rs. ${Math.round(data.results.newTotal * 4/104).toLocaleString('en-IN')}`, 125, yPos);
+        doc.text(`Rs. ${Math.round(data.results.newTotal).toLocaleString('en-IN')}`, 165, yPos);
+    }
+    
+    doc.save(`${calcType}_Report_${Date.now()}.pdf`);
+}
+
+function addCurrentScenarioToCompare(calcType) {
+    const data = state.lastCalculationData;
+    if (!data || data.type !== calcType) {
+        alert("Please run the calculation first before comparing.");
+        return;
+    }
+    
+    const label = prompt("Enter a description label for this scenario (e.g. Regular SIP 12%, Stepup SIP 15%):", `${calcType} Scenario`);
+    if (label === null) return; 
+    
+    let saved = [];
+    try {
+        saved = JSON.parse(localStorage.getItem('vj_saved_scenarios')) || [];
+    } catch (e) {
+        saved = [];
+    }
+    
+    saved.push({
+        id: Date.now() + Math.random(),
+        type: calcType,
+        label: label,
+        invested: data.results.totalInvested || data.results.oldTaxable || 0,
+        returns: data.results.estReturns || 0,
+        value: data.results.finalValue || data.results.ppfMaturity || data.results.oldTotal || 0,
+        timestamp: new Date().toLocaleString('en-IN')
+    });
+    
+    localStorage.setItem('vj_saved_scenarios', JSON.stringify(saved));
+    alert("Scenario saved to comparison desk! Switch to 'Compare Mode' in the sidebar.");
+}
+
+function clearAllScenarios() {
+    if (confirm("Are you sure you want to clear all compared scenarios?")) {
+        localStorage.removeItem('vj_saved_scenarios');
+        renderCompareMode();
+    }
+}
+
+function deleteScenario(id) {
+    let saved = [];
+    try {
+        saved = JSON.parse(localStorage.getItem('vj_saved_scenarios')) || [];
+    } catch (e) {
+        saved = [];
+    }
+    saved = saved.filter(s => s.id !== id);
+    localStorage.setItem('vj_saved_scenarios', JSON.stringify(saved));
+    renderCompareMode();
+}
+
+let comparisonChartInstance = null;
+function renderCompareMode() {
+    let saved = [];
+    try {
+        saved = JSON.parse(localStorage.getItem('vj_saved_scenarios')) || [];
+    } catch (e) {
+        saved = [];
+    }
+    
+    const body = document.getElementById('comparisonTableBody');
+    if (!body) return;
+    body.innerHTML = '';
+    
+    if (saved.length === 0) {
+        body.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-500">No scenarios saved yet. Use the "⚖️ Compare" button on any calculator.</td></tr>`;
+        if (comparisonChartInstance) {
+            comparisonChartInstance.destroy();
+            comparisonChartInstance = null;
+        }
+        return;
+    }
+    
+    saved.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-800 text-slate-200 text-sm hover:bg-slate-900/40';
+        tr.innerHTML = `
+            <td class="py-3 px-2 font-bold text-indigo-400">${s.type}</td>
+            <td class="py-3 px-2 font-semibold text-white">${s.label} <span class="block text-[8px] text-slate-500">${s.timestamp}</span></td>
+            <td class="py-3 px-2 text-right">₹${Math.round(s.invested).toLocaleString('en-IN')}</td>
+            <td class="py-3 px-2 text-right text-emerald-400">₹${Math.round(s.returns).toLocaleString('en-IN')}</td>
+            <td class="py-3 px-2 text-right text-white font-extrabold">₹${Math.round(s.value).toLocaleString('en-IN')}</td>
+            <td class="py-3 px-2 text-center">
+                <button onclick="deleteScenario(${s.id})" class="text-red-400 hover:text-red-500 font-bold px-2 py-1 rounded hover:bg-slate-800 transition">Delete</button>
+            </td>
+        `;
+        body.appendChild(tr);
+    });
+    
+    const canvas = document.getElementById('comparisonChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    if (comparisonChartInstance) {
+        comparisonChartInstance.destroy();
+    }
+    
+    const isLight = document.body.classList.contains('light-mode');
+    const gridColor = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(51, 65, 85, 0.15)';
+    const tickColor = isLight ? '#475569' : '#94a3b8';
+    
+    comparisonChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: saved.map(s => s.label),
+            datasets: [
+                {
+                    label: 'Total Invested',
+                    data: saved.map(s => Math.round(s.invested)),
+                    backgroundColor: 'rgba(71, 85, 105, 0.7)',
+                    borderColor: 'rgba(71, 85, 105, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Est. Returns / Savings',
+                    data: saved.map(s => Math.round(s.returns)),
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Final Value / Liability',
+                    data: saved.map(s => Math.round(s.value)),
+                    backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+                y: { grid: { color: gridColor }, ticks: { color: tickColor, callback: v => '₹' + v.toLocaleString('en-IN') } }
+            },
+            plugins: {
+                legend: { labels: { color: tickColor } },
+                tooltip: { callbacks: { label: c => c.dataset.label + ': ₹' + c.raw.toLocaleString('en-IN') } }
+            }
+        }
+    });
+}
+
+let simulatorIntervalId = null;
+function startIndicesSimulator() {
+    if (simulatorIntervalId) return;
+    
+    let niftyPrice = state.spotPrice || 23622.90;
+    let bankNiftyPrice = 50000.0;
+    let sensexPrice = 77000.0;
+    
+    simulatorIntervalId = setInterval(() => {
+        const walk = () => (Math.random() - 0.5) * 0.001; 
+        
+        niftyPrice = niftyPrice * (1 + walk());
+        bankNiftyPrice = bankNiftyPrice * (1 + walk());
+        sensexPrice = sensexPrice * (1 + walk());
+        
+        state.spotPrice = niftyPrice;
+        
+        const spotInput = document.getElementById('spotPrice');
+        if (spotInput && document.activeElement !== spotInput) {
+            spotInput.value = niftyPrice.toFixed(2);
+        }
+        
+        const sipNiftyLive = document.getElementById('sipNiftyLive');
+        if (sipNiftyLive) {
+            sipNiftyLive.innerText = '₹' + Math.round(niftyPrice).toLocaleString('en-IN');
+        }
+        
+        if (state.activeDesk === 'options') {
+            renderOptionChain();
+            renderStressMatrix();
+            updateStrategyPayoffCurves();
+        }
+        
+        const niftyEl = document.getElementById('sipBenchNifty');
+        if (niftyEl) {
+            niftyEl.innerText = '₹' + Math.round(niftyPrice).toLocaleString('en-IN');
+        }
+        const bankNiftyEl = document.getElementById('sipBenchBankNifty');
+        if (bankNiftyEl) {
+            bankNiftyEl.innerText = '₹' + Math.round(bankNiftyPrice).toLocaleString('en-IN');
+        }
+        const sensexEl = document.getElementById('sipBenchSensex');
+        if (sensexEl) {
+            sensexEl.innerText = '₹' + Math.round(sensexPrice).toLocaleString('en-IN');
+        }
+        
+        updateHeaderTickerSimulator(niftyPrice);
+    }, 4000);
+}
+
+function updateHeaderTickerSimulator(niftyPrice) {
+    if (!latestTickerResults || latestTickerResults.length === 0) return;
+    
+    latestTickerResults.forEach(r => {
+        const walk = () => (Math.random() - 0.5) * 0.001; 
+        if (r.label === 'NIFTY 50') {
+            r.price = niftyPrice;
+        } else {
+            r.price = r.price * (1 + walk());
+        }
+        r.html = `<span class="ticker-item ${r.cls}">
+            <span class="font-bold opacity-80">${r.label}</span>
+            <span class="font-black tracking-tight">₹${Math.round(r.price).toLocaleString('en-IN')}</span>
+            <span class="font-bold">${r.sign}${r.chg.toFixed(2)}</span>
+            <span class="font-bold">(${r.sign}${r.chgPct.toFixed(2)}%)</span>
+        </span>`;
+    });
+    
+    const track = document.getElementById('liveTickerTrack');
+    if (track) {
+        track.innerHTML = latestTickerResults.map(r => r.html).join('') + latestTickerResults.map(r => r.html).join('');
+    }
+}
+
+// probability density function
 function npdf(x) {
     return (1.0 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
 }
@@ -151,7 +755,8 @@ const DESK_ACCENTS = {
     mfLumpsum: { h: 199, s: '89%', l: '48%' },    // Sky
     retirement: { h: 350, s: '89%', l: '60%' },    // Rose
     tax: { h: 24, s: '95%', l: '50%' },           // Orange
-    goldSpot: { h: 45, s: '90%', l: '48%' }       // Yellow
+    goldSpot: { h: 45, s: '90%', l: '48%' },       // Yellow
+    compare: { h: 226, s: '70%', l: '55%' }       // Indigo
 };
 
 // Switch workspace tabs — supports 18 desks
@@ -162,7 +767,7 @@ function switchDesk(desk) {
     ['optionsDeskView','goldDeskView','deliveryDeskView','learnerDeskView',
      'childDeskView','debtDeskView','swpDeskView','goldReturnsDeskView','assetDeskView',
      'sipDeskView','ppfDeskView','npsDeskView','fdDeskView','rdDeskView','mfLumpsumDeskView','retirementDeskView','taxDeskView',
-     'goldSpotDeskView'
+     'goldSpotDeskView','compareDeskView'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
     
     // Hide all sidebar containers
@@ -182,7 +787,7 @@ function switchDesk(desk) {
     const tabIds = [
      'tabOptionsBtn','tabGoldBtn','tabDeliveryBtn','tabLearnerBtn',
      'tabChildBtn','tabDebtBtn','tabSwpBtn','tabGoldReturnsBtn','tabAssetBtn',
-     'tabSIPBtn','tabPPFBtn','tabNPSBtn','tabFDBtn','tabRDBtn','tabMFLumpsumBtn','tabRetirementBtn','tabTaxBtn','tabGoldSpotBtn'
+     'tabSIPBtn','tabPPFBtn','tabNPSBtn','tabFDBtn','tabRDBtn','tabMFLumpsumBtn','tabRetirementBtn','tabTaxBtn','tabGoldSpotBtn','tabCompareBtn'
     ];
     tabIds.forEach(id => {
         const btn = document.getElementById(id);
@@ -209,7 +814,8 @@ function switchDesk(desk) {
         mfLumpsum: { btn: 'tabMFLumpsumBtn', name: 'MF Lumpsum', badgeClass: 'text-[9px] bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-bold' },
         retirement: { btn: 'tabRetirementBtn', name: 'Retirement Calculator', badgeClass: 'text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold' },
         tax: { btn: 'tabTaxBtn', name: 'Tax Calculator', badgeClass: 'text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-bold' },
-        goldSpot: { btn: 'tabGoldSpotBtn', name: 'Gold Price', badgeClass: 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold' }
+        goldSpot: { btn: 'tabGoldSpotBtn', name: 'Gold Price', badgeClass: 'text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold' },
+        compare: { btn: 'tabCompareBtn', name: 'Compare Mode', badgeClass: 'text-[9px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold' }
     };
 
     const info = deskInfo[desk];
@@ -294,6 +900,9 @@ function switchDesk(desk) {
         document.getElementById('goldSpotDeskView').classList.remove('hidden');
         document.getElementById('goldSpotInputsContainer').classList.remove('hidden');
         calculateGoldSpot();
+    } else if (desk === 'compare') {
+        document.getElementById('compareDeskView').classList.remove('hidden');
+        renderCompareMode();
     }
 }
 
@@ -568,6 +1177,17 @@ function renderOptionChain() {
     const pcrVal = totalPutOI / totalCallOI;
     const pcrText = document.getElementById('optChainPcr');
     if (pcrText) pcrText.innerText = pcrVal.toFixed(2);
+
+    // Calculate and display Max Pain
+    const callsOI = strikes.map(K => Math.round(100000 * Math.exp(-Math.pow(K - S - 100, 2) / 200000) * (1 + Math.cos(K / 200) * 0.2)));
+    const putsOI = strikes.map(K => Math.round(100000 * Math.exp(-Math.pow(S - K - 100, 2) / 200000) * (1 + Math.sin(K / 200) * 0.2)));
+    const maxPainStrike = findMaxPain(strikes, callsOI, putsOI);
+    const maxPainEl = document.getElementById('optChainMaxPain');
+    if (maxPainEl) maxPainEl.innerText = '₹' + maxPainStrike.toLocaleString('en-IN');
+
+    // Update IV Rank & Percentile
+    updateIVRankAndPercentile();
+
     return pcrVal;
 }
 
@@ -861,13 +1481,85 @@ function updateStrategyPayoffCurves() {
     const tooltipTitle = isLight ? '#0f172a' : '#fff';
 
     if (payoffChartInstance) {
-        payoffChartInstance.data.labels = payoffPoints.map(p => `₹${p.spot.toLocaleString()}`);
-        payoffChartInstance.data.datasets[0].data = payoffPoints.map(p => Math.round(p.val));
+        if (optionChartMode === 'payoff') {
+            payoffChartInstance.data.labels = payoffPoints.map(p => `₹${p.spot.toLocaleString()}`);
+            payoffChartInstance.data.datasets[0].label = 'Net Payoff at Expiration';
+            payoffChartInstance.data.datasets[0].data = payoffPoints.map(p => Math.round(p.val));
+            payoffChartInstance.data.datasets[0].borderColor = '#10b981';
+            payoffChartInstance.data.datasets[0].backgroundColor = isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)';
+            payoffChartInstance.data.datasets[0].fill = true;
+            payoffChartInstance.data.datasets[0].pointRadius = 0;
+            payoffChartInstance.data.datasets[0].tension = 0.1;
+            payoffChartInstance.data.datasets = [payoffChartInstance.data.datasets[0]];
+            
+            payoffChartInstance.options.scales.y.ticks.callback = function(value) {
+                return (value >= 0 ? '+' : '') + '₹' + value.toLocaleString('en-IN');
+            };
+            payoffChartInstance.options.plugins.tooltip.callbacks.label = function(context) {
+                return 'Payoff: ' + (context.raw >= 0 ? '+' : '') + '₹' + context.raw.toLocaleString('en-IN');
+            };
+        } else {
+            const strikesList = [];
+            const callIVList = [];
+            const putIVList = [];
+            
+            const S_val = state.spotPrice;
+            const IV_val = state.volatility;
+            const days_val = state.daysToExpiry;
+            const atmStrike_val = Math.round(S_val / 100) * 100;
+            
+            for (let offset = -500; offset <= 500; offset += 100) {
+                const K = atmStrike_val + offset;
+                const calls = calculateGreeks(S_val, K, days_val, 6.0, IV_val, 'CALL');
+                const puts = calculateGreeks(S_val, K, days_val, 6.0, IV_val, 'PUT');
+                
+                const callPrice = calls.price * (1 + Math.pow(K - S_val, 2) / 800000);
+                const putPrice = puts.price * (1 + Math.pow(S_val - K, 2) / 800000);
+                
+                const cIV = findImpliedVolatility(callPrice, S_val, K, days_val, 6.0, 'CALL');
+                const pIV = findImpliedVolatility(putPrice, S_val, K, days_val, 6.0, 'PUT');
+                
+                strikesList.push(K);
+                callIVList.push(parseFloat(cIV.toFixed(2)));
+                putIVList.push(parseFloat(pIV.toFixed(2)));
+            }
+            
+            payoffChartInstance.data.labels = strikesList.map(k => `₹${k}`);
+            payoffChartInstance.data.datasets = [
+                {
+                    label: 'Call IV %',
+                    data: callIVList,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                    fill: false,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    tension: 0.3
+                },
+                {
+                    label: 'Put IV %',
+                    data: putIVList,
+                    borderColor: '#f43f5e',
+                    backgroundColor: 'rgba(244, 63, 94, 0.05)',
+                    fill: false,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    tension: 0.3
+                }
+            ];
+            
+            payoffChartInstance.options.scales.y.ticks.callback = function(value) {
+                return value.toFixed(1) + '%';
+            };
+            payoffChartInstance.options.plugins.tooltip.callbacks.label = function(context) {
+                return context.dataset.label + ': ' + context.raw + '%';
+            };
+        }
+        
         payoffChartInstance.options.scales.x.grid.color = gridColor;
         payoffChartInstance.options.scales.x.ticks.color = tickColor;
         payoffChartInstance.options.scales.y.grid.color = gridColor;
         payoffChartInstance.options.scales.y.ticks.color = tickColor;
-        
         payoffChartInstance.options.plugins.tooltip.backgroundColor = tooltipBg;
         payoffChartInstance.options.plugins.tooltip.borderColor = tooltipBorder;
         payoffChartInstance.options.plugins.tooltip.titleColor = tooltipTitle;
@@ -875,21 +1567,29 @@ function updateStrategyPayoffCurves() {
         
         payoffChartInstance.update();
     } else {
+        let datasets = [];
+        let labels = [];
+        
+        if (optionChartMode === 'payoff') {
+            labels = payoffPoints.map(p => `₹${p.spot.toLocaleString()}`);
+            datasets = [{
+                label: 'Net Payoff at Expiration',
+                data: payoffPoints.map(p => Math.round(p.val)),
+                borderColor: '#10b981',
+                backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
+                fill: true,
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.1
+            }];
+        } else {
+            labels = [];
+            datasets = [];
+        }
+        
         payoffChartInstance = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: payoffPoints.map(p => `₹${p.spot.toLocaleString()}`),
-                datasets: [{
-                    label: 'Net Payoff at Expiration',
-                    data: payoffPoints.map(p => Math.round(p.val)),
-                    borderColor: '#10b981',
-                    backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
-                    fill: true,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.1
-                }]
-            },
+            data: { labels, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -904,13 +1604,17 @@ function updateStrategyPayoffCurves() {
                             color: tickColor,
                             font: { family: 'Plus Jakarta Sans', size: 9 },
                             callback: function(value) {
-                                return (value >= 0 ? '+' : '') + '₹' + value.toLocaleString('en-IN');
+                                if (optionChartMode === 'payoff') {
+                                    return (value >= 0 ? '+' : '') + '₹' + value.toLocaleString('en-IN');
+                                } else {
+                                    return value.toFixed(1) + '%';
+                                }
                             }
                         }
                     }
                 },
                 plugins: {
-                    legend: { display: false },
+                    legend: { display: optionChartMode !== 'payoff' },
                     tooltip: {
                         backgroundColor: tooltipBg,
                         borderColor: tooltipBorder,
@@ -920,14 +1624,24 @@ function updateStrategyPayoffCurves() {
                         bodyFont: { family: 'JetBrains Mono', size: 9 },
                         callbacks: {
                             label: function(context) {
-                                return 'Payoff: ' + (context.raw >= 0 ? '+' : '') + '₹' + context.raw.toLocaleString('en-IN');
+                                if (optionChartMode === 'payoff') {
+                                    return 'Payoff: ' + (context.raw >= 0 ? '+' : '') + '₹' + context.raw.toLocaleString('en-IN');
+                                } else {
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
                             }
                         }
                     }
                 }
             }
         });
+        
+        if (optionChartMode === 'ivsmile') {
+            updateStrategyPayoffCurves();
+        }
     }
+    
+    renderStressMatrix();
 }
 
 // Render dynamic Sector Heatmap items
@@ -1773,7 +2487,7 @@ window.onload = function() {
 
     // Initialize Beginner Mode
     const savedBeg = localStorage.getItem('vj_beginner_mode');
-    state.beginnerMode = (savedBeg === null || savedBeg === 'true');
+    state.beginnerMode = (savedBeg === 'true');
     updateBeginnerModeUI();
 
     // Initialize call/put simulator layout
@@ -1912,6 +2626,9 @@ window.onload = function() {
 
     // Initialize Command Palette key listeners
     initCommandPalette();
+
+    // Start simulated index ticks
+    startIndicesSimulator();
 
     updateAppLayout();
 }
@@ -2063,6 +2780,33 @@ function calculateDebtEMI() {
                 tooltip: { callbacks: { label: c => c.label + ': \u20b9' + c.raw.toLocaleString('en-IN') } } }
         }
     });
+    
+    // Generate monthly schedule for exports
+    const sched = [];
+    let bal = principal;
+    for (let m = 1; m <= tenure; m++) {
+        const intP = bal * r;
+        const prinP = Math.min(emi - intP + (m <= monthsPaid ? prepayment : 0), bal);
+        const closeB = Math.max(0, bal - prinP);
+        sched.push({
+            month: m,
+            open: bal,
+            emi: emi,
+            principal: prinP,
+            interest: intP,
+            prepay: m <= monthsPaid ? prepayment : 0,
+            close: closeB
+        });
+        bal = closeB;
+        if (bal <= 0) break;
+    }
+    
+    state.lastCalculationData = {
+        type: 'Debt',
+        inputs: { principal, annualRate, tenure, prepayment },
+        results: { monthlyEMI: emi, totalInterest: prepayment > 0 ? totalInterestWithPrep : totalInterest, interestSaved, monthsSaved },
+        schedule: sched
+    };
 }
 
 // =================================================================
@@ -2122,6 +2866,18 @@ function calculateSWP() {
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Corpus: \u20b9'+c.raw.toLocaleString('en-IN') } } }
         }
     });
+    
+    // Map balanceData into yearsData for schedule
+    const swpSchedule = yearsData.map((y, idx) => ({
+        year: idx,
+        value: balanceData[idx]
+    }));
+    state.lastCalculationData = {
+        type: 'SWP',
+        inputs: { corpus, monthlyWithdrawal, returnRate, inflation },
+        results: { totalInvested: corpus, finalValue: balanceData[balanceData.length - 1] || 0, estReturns: 0, depletion: depletion === -1 ? 'Never' : Math.floor(depletion/12) + ' yrs ' + (depletion%12) + ' mo' },
+        schedule: swpSchedule
+    };
 }
 
 // =================================================================
@@ -2499,6 +3255,12 @@ function calculateSIP() {
             }
         });
     }
+    state.lastCalculationData = {
+        type: 'SIP',
+        inputs: { mode, rate, tenure, monthlySIP, stepUpPct, lumpsumAmt, goalAmt, existingAmt },
+        results: { totalInvested, finalValue, estReturns },
+        schedule: yearlyData
+    };
 }
 
 // =================================================================
@@ -2578,6 +3340,7 @@ async function fetchLiveTickerData() {
             ageEl.className = 'text-[9px] ' + (anySuccess ? 'text-brand-400' : 'text-rose-500') + ' ml-0.5 font-bold';
         }
     }
+    latestTickerResults = results;
 
     const primary = results.find(r => r.label === 'NIFTY 50');
     const hStatus = document.getElementById('headerMarketStatusText');
@@ -2896,6 +3659,12 @@ function calculatePPF() {
             </tr>`;
         }).join('');
     }
+    state.lastCalculationData = {
+        type: 'PPF',
+        inputs: { annual, tenure, rate },
+        results: { totalInvested: totalDeposits, finalValue: maturity, estReturns: interest },
+        schedule: yearlyData
+    };
 }
 
 // =================================================================
@@ -2987,6 +3756,12 @@ function calculateRetirement() {
     document.getElementById('retFvSavings').innerText = fmt(fvSavings);
     document.getElementById('retGap').innerText = fmt(gap);
     document.getElementById('retRequiredSIP').innerText = fmt(requiredSIP) + '/mo';
+    state.lastCalculationData = {
+        type: 'Retirement',
+        inputs: { currentAge, retireAge, lifeExp, monthlyExp, inflation, preRetReturn, postRetReturn, currentSavings },
+        results: { totalInvested: currentSavings, finalValue: corpusNeeded, estReturns: requiredSIP, gap },
+        schedule: []
+    };
 }
 
 // =================================================================
@@ -3096,6 +3871,12 @@ function calculateTax() {
             recEl.className = 'text-sm text-amber-300 font-bold';
         }
     }
+    state.lastCalculationData = {
+        type: 'Tax',
+        inputs: { income, age, eightyC, eightyD, hra, npsDed, homeLoan },
+        results: { oldTaxable: oldResult.taxable, oldTotal: oldResult.totalTax, newTaxable: newResult.taxable, newTotal: newResult.totalTax, savings },
+        schedule: []
+    };
 }
 
 // =================================================================
@@ -3131,6 +3912,20 @@ function calculateMFLumpsum() {
         }
         tbody.innerHTML = rows.join('');
     }
+    const yearlyData = [];
+    for (let y = 1; y <= tenure; y++) {
+        yearlyData.push({
+            year: y,
+            invested: amount,
+            value: Math.round(amount * Math.pow(1 + r, y))
+        });
+    }
+    state.lastCalculationData = {
+        type: 'Lumpsum',
+        inputs: { amount, rate, tenure },
+        results: { totalInvested: amount, finalValue: maturity, estReturns: interest },
+        schedule: yearlyData
+    };
 }
 
 // =================================================================

@@ -820,3 +820,39 @@ body.light-mode .command-palette-item.selected {
         display: none;
     }
 }
+
+/* Options Strategy Stress Test Matrix Styling */
+.stress-profit-strong {
+    background: rgba(16, 185, 129, 0.22) !important;
+    color: #10b981 !important;
+    font-weight: bold;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+.stress-profit-medium {
+    background: rgba(16, 185, 129, 0.14) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+.stress-profit-light {
+    background: rgba(16, 185, 129, 0.07) !important;
+    color: #6ee7b7 !important;
+}
+.stress-neutral {
+    background: rgba(148, 163, 184, 0.05) !important;
+    color: #94a3b8 !important;
+}
+.stress-loss-light {
+    background: rgba(244, 63, 94, 0.07) !important;
+    color: #fda4af !important;
+}
+.stress-loss-medium {
+    background: rgba(244, 63, 94, 0.14) !important;
+    color: #fb7185 !important;
+    border: 1px solid rgba(244, 63, 94, 0.2) !important;
+}
+.stress-loss-strong {
+    background: rgba(244, 63, 94, 0.22) !important;
+    color: #f43f5e !important;
+    font-weight: bold;
+    border: 1px solid rgba(244, 63, 94, 0.3) !important;
+}
